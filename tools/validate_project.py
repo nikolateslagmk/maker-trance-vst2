@@ -57,6 +57,12 @@ checks = {
     "exportacao MIDI": "writeMidiFile" in midi and "{'M','T','h','d'}" in midi and "{'M','T','r','k'}" in midi,
     "piano roll musical": "stepDurationTicks" in shared and "ARRASTE O ARQUIVO" in ui,
     "tres estilos": all(name in shared for name in ("UPLIFTING", "PSYCHEDELIC", "PROGRESSIVE")),
+    "motor triadico": all(token in shared for token in (
+        "selectProgression", "triadMotifByVariant", "scoreTriadicPhrase",
+        "repairTriadicPhrase", "applyGenerationMotifVariation"
+    )),
+    "cadencia emocional": "dominant-function chord" in shared and "tonic resolution" in shared,
+    "interface epic triad": "TRIAD EPIC" in ui and "GERADOR TRIADICO" in ui,
     "shell windows": 'target_link_libraries("MakerTrance-ui" PRIVATE shell32)' in cmake,
     "workflow visivel": visible_workflow == workflow,
 }
@@ -84,6 +90,6 @@ with tempfile.TemporaryDirectory() as tmp:
     print(result.stdout.strip())
 
 print(
-    f"OK: {parameter_count} parametros; previa one-shot; exportacao MIDI; "
+    f"OK: {parameter_count} parametros; motor Epic Triad; previa one-shot; exportacao MIDI; "
     "BPM sync; interface responsiva; workflow e fontes consistentes."
 )
