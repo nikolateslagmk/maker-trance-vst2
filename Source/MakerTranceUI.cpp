@@ -315,7 +315,8 @@ private:
 
     void drawRect(const GraphicsContext& context, const UiRect& r, const Color& color) const
     {
-        color.setFor(context);
+        DGL::Color drawColor(color);
+        drawColor.setFor(context);
         Rectangle<double>(r.x, r.y, r.w, r.h).draw(context);
     }
 
@@ -330,7 +331,8 @@ private:
     void drawText(const GraphicsContext& context, double x, const double y, const char* text,
                   const double scale, const Color& color) const
     {
-        color.setFor(context);
+        DGL::Color drawColor(color);
+        drawColor.setFor(context);
         const double pixel = std::max(0.72, scale);
         const double advance = pixel * 6.0;
         for (const char* p = text; *p != '\0'; ++p)
