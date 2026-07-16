@@ -3,7 +3,6 @@ from __future__ import annotations
 import pathlib
 import re
 import subprocess
-import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -15,6 +14,7 @@ required = [
     ROOT / "Source" / "MakerTranceUI.cpp",
     ROOT / ".github" / "workflows" / "build-vst2.yml",
     ROOT / "WORKFLOW-build-vst2.yml",
+    ROOT / "tools" / "test_melody.cpp",
 ]
 missing = [str(path.relative_to(ROOT)) for path in required if not path.exists()]
 if missing:
@@ -23,33 +23,46 @@ if missing:
 shared = (ROOT / "Source" / "MakerTranceShared.hpp").read_text(encoding="utf-8")
 plugin = (ROOT / "Source" / "MakerTrancePlugin.cpp").read_text(encoding="utf-8")
 ui = (ROOT / "Source" / "MakerTranceUI.cpp").read_text(encoding="utf-8")
+info = (ROOT / "Source" / "DistrhoPluginInfo.h").read_text(encoding="utf-8")
 cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
 workflow = (ROOT / ".github" / "workflows" / "build-vst2.yml").read_text(encoding="utf-8")
+visible_workflow = (ROOT / "WORKFLOW-build-vst2.yml").read_text(encoding="utf-8")
+
+process_match = re.search(
+    r"void processSequencer\(.*?\n    \}\n\n    void sendMidi",
+    plugin,
+    re.S,
+)
+if not process_match:
+    raise SystemExit("Processador MIDI one-shot nao encontrado")
+process_body = process_match.group(0)
 
 checks = {
-    "nome do plugin": "Maker Trance by Alza Produz" in (ROOT / "Source" / "DistrhoPluginInfo.h").read_text(encoding="utf-8"),
-    "target VST2": "TARGETS vst2" in cmake,
-    "target workflow": "MakerTrance-vst2" in workflow,
-    "interface": "MakerTranceUI.cpp" in cmake and "DISTRHO_PLUGIN_HAS_UI 1" in (ROOT / "Source" / "DistrhoPluginInfo.h").read_text(encoding="utf-8"),
+    "nome do plugin": "Maker Trance by Alza Produz" in info,
+    "target VST2": re.search(r"TARGETS\s+vst2", cmake) is not None,
+    "acao DPF win64": "distrho/dpf-cmake-action@v1" in workflow and "target: win64" in workflow,
+    "interface 1280x760": "DISTRHO_UI_DEFAULT_WIDTH 1280" in info and "DISTRHO_UI_DEFAULT_HEIGHT 760" in info,
     "gerador": "generateMelody" in shared and "GENERATE NEW MELODY" in ui,
-    "modo automático": "processSequencer" in plugin and "pMode" in shared,
-    "três estilos": all(name in shared for name in ("UPLIFTING", "PSYCHEDELIC", "PROGRESSIVE")),
-    "runtime estático": "CMAKE_MSVC_RUNTIME_LIBRARY" in cmake,
-    "workflow visível": (ROOT / "WORKFLOW-build-vst2.yml").read_text(encoding="utf-8") == workflow,
+    "modo MIDI one-shot": "fSequenceFinished" in process_body and "% fPattern.length" not in process_body,
+    "auto nao dispara sintetizador": "noteOn(" not in process_body,
+    "sincronismo BPM": "stepDurationSamples" in process_body and "beatsPerMinute" in plugin,
+    "modo manual padrao": '{"Play Mode", "mode", "0=Manual synth 1=One-shot MIDI capture", 0.0f, 1.0f, 0.0f' in shared,
+    "instrucoes piano roll": "BURN MIDI TO NEW PATTERN" in ui,
+    "tres estilos": all(name in shared for name in ("UPLIFTING", "PSYCHEDELIC", "PROGRESSIVE")),
+    "workflow visivel": visible_workflow == workflow,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("Falharam: " + ", ".join(failed))
 
-# Count actual enum entries before kParameterCount.
 enum_match = re.search(r"enum ParameterId[^\{]*\{(.*?)kParameterCount", shared, re.S)
 if not enum_match:
-    raise SystemExit("Enum de parâmetros não encontrado")
+    raise SystemExit("Enum de parametros nao encontrado")
 entries = [e.strip() for e in enum_match.group(1).split(",") if e.strip()]
 parameter_count = len(entries)
 spec_count = shared.count('{"')
 if parameter_count < 40 or spec_count < parameter_count:
-    raise SystemExit(f"Parâmetros inconsistentes: enum={parameter_count}, specs={spec_count}")
+    raise SystemExit(f"Parametros inconsistentes: enum={parameter_count}, specs={spec_count}")
 
 with tempfile.TemporaryDirectory() as tmp:
     exe = pathlib.Path(tmp) / "test_melody"
@@ -61,4 +74,7 @@ with tempfile.TemporaryDirectory() as tmp:
     result = subprocess.run([str(exe)], check=True, text=True, capture_output=True)
     print(result.stdout.strip())
 
-print(f"OK: {parameter_count} parâmetros, interface customizada, workflow e fontes consistentes.")
+print(
+    f"OK: {parameter_count} parametros; MIDI one-shot; BPM sync; "
+    "interface ampliada; workflow e fontes consistentes."
+)

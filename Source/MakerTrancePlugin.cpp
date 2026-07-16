@@ -248,12 +248,12 @@ protected:
     const char* getLabel() const override { return "MakerTrance"; }
     const char* getDescription() const override
     {
-        return "Trance synthesizer with automatic non-repeating melody generation";
+        return "Trance synthesizer with one-shot MIDI melody generation for the host piano roll";
     }
     const char* getMaker() const override { return "Alza Produz"; }
     const char* getHomePage() const override { return "https://github.com/nikolateslagmk"; }
     const char* getLicense() const override { return "Project source license plus DPF attribution"; }
-    uint32_t getVersion() const override { return d_version(1, 0, 0); }
+    uint32_t getVersion() const override { return d_version(1, 1, 0); }
     int64_t getUniqueId() const override { return d_cconst('M', 'T', 'A', '2'); }
 
     void initParameter(const uint32_t index, Parameter& parameter) override
@@ -292,7 +292,8 @@ protected:
 
         if (index == pMode)
         {
-            allNotesOff();
+            allNotesOff(true);
+            clearEffectTails();
             resetSequencer();
         }
     }
@@ -381,10 +382,15 @@ protected:
 
         const bool automatic = fParameters[pMode] >= 0.5f;
         const bool transportPlaying = timePosition.playing;
+
+        // AUTO is a one-shot MIDI capture mode. It never triggers the internal
+        // synthesizer. FL Studio can burn the emitted notes to the Piano roll.
         if (automatic && transportPlaying && !fWasPlaying)
             resetSequencer();
-        if ((!automatic || !transportPlaying) && fWasPlaying)
-            releaseAutoNote(0u, false);
+        if (automatic && !transportPlaying && fWasPlaying)
+            releaseAutoNote(0u, true);
+        if (!automatic && fWasPlaying)
+            releaseAutoNote(0u, true);
         fWasPlaying = automatic && transportPlaying;
 
         uint32_t eventIndex = 0;
@@ -459,12 +465,24 @@ private:
         resetSequencer();
     }
 
+    void clearEffectTails() noexcept
+    {
+        fDelayL.clear(); fDelayR.clear();
+        fChorusL.clear(); fChorusR.clear();
+        for (Comb& comb : fCombsL) comb.clear();
+        for (Comb& comb : fCombsR) comb.clear();
+        fGatePhase = 0.0;
+        fSmoothedGate = 1.0f;
+        fChorusPhase = 0.0f;
+    }
+
     void resetSequencer() noexcept
     {
         fSequenceStep = 0u;
         fSamplesUntilStep = 0.0;
         fAutoGateSamples = 0.0;
         fAutoNote = -1;
+        fSequenceFinished = false;
     }
 
     void handleMidi(const MidiEvent& event, const bool automatic) noexcept
@@ -500,6 +518,8 @@ private:
 
     void processSequencer(const uint32_t frame, const double bpm) noexcept
     {
+        if (fSequenceFinished) return;
+
         if (fAutoGateSamples > 0.0)
         {
             fAutoGateSamples -= 1.0;
@@ -511,29 +531,33 @@ private:
         if (fSamplesUntilStep > 0.0) return;
 
         releaseAutoNote(frame, true);
-        const MelodyStep& step = fPattern.steps[fSequenceStep % fPattern.length];
-        const double baseDuration = fSampleRate * 60.0 / bpm
-                                  / stepsPerBeatFromRate(fParameters[pRate]);
-        const double swing = static_cast<double>(fParameters[pSwing]);
-        const double swingFactor = (fSequenceStep & 1u) != 0u ? 1.0 + swing : 1.0 - swing;
-        const double duration = std::max(1.0, baseDuration * swingFactor);
+
+        // Do not loop. Each transport start emits exactly one generated phrase.
+        if (fSequenceStep >= fPattern.length)
+        {
+            fSequenceFinished = true;
+            return;
+        }
+
+        const MelodyStep& step = fPattern.steps[fSequenceStep];
+        const double duration = stepDurationSamples(
+            static_cast<double>(fSampleRate), bpm,
+            fParameters[pRate], fParameters[pSwing], fSequenceStep);
         fSamplesUntilStep += duration;
 
         if (step.active != 0u)
         {
             fAutoNote = clampi(static_cast<int>(step.note), 0, 127);
-            noteOn(fAutoNote, static_cast<float>(step.velocity) / 127.0f);
             fAutoGateSamples = std::max(1.0, duration * (static_cast<double>(step.gate) / 127.0));
             sendMidi(frame, true, fAutoNote, step.velocity);
         }
 
-        fSequenceStep = (fSequenceStep + 1u) % fPattern.length;
+        ++fSequenceStep;
     }
 
     void sendMidi(const uint32_t frame, const bool noteOnEvent,
                   const int note, const int velocity) noexcept
     {
-        if (fParameters[pMidiOut] < 0.5f) return;
         MidiEvent event {};
         event.frame = frame;
         event.size = 3u;
@@ -546,7 +570,6 @@ private:
     void releaseAutoNote(const uint32_t frame, const bool sendOutput) noexcept
     {
         if (fAutoNote < 0) return;
-        noteOff(fAutoNote);
         if (sendOutput) sendMidi(frame, false, fAutoNote, 0);
         fAutoNote = -1;
         fAutoGateSamples = 0.0;
@@ -799,6 +822,7 @@ private:
     double fAutoGateSamples = 0.0;
     int fAutoNote = -1;
     bool fWasPlaying = false;
+    bool fSequenceFinished = false;
 };
 
 Plugin* createPlugin()

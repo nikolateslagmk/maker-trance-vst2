@@ -83,7 +83,7 @@ struct ParameterSpec
 
 constexpr std::array<ParameterSpec, kParameterCount> kParameterSpecs {{
     {"Master", "master", "", 0.0f, 1.0f, 0.72f, flagNone},
-    {"Play Mode", "mode", "0=Manual 1=Auto", 0.0f, 1.0f, 1.0f, flagInteger | flagBoolean},
+    {"Play Mode", "mode", "0=Manual synth 1=One-shot MIDI capture", 0.0f, 1.0f, 0.0f, flagInteger | flagBoolean},
     {"Trance Style", "style", "0=Uplifting 1=Psy 2=Progressive", 0.0f, 2.0f, 0.0f, flagInteger},
     {"Root Note", "root", "MIDI", 24.0f, 84.0f, 48.0f, flagInteger},
     {"Scale", "scale", "0=Minor 1=Major 2=Dorian 3=Phrygian 4=Lydian 5=Harmonic Minor", 0.0f, 5.0f, 1.0f, flagInteger},
@@ -97,7 +97,7 @@ constexpr std::array<ParameterSpec, kParameterCount> kParameterSpecs {{
     {"Humanize", "humanize", "", 0.0f, 1.0f, 0.18f, flagNone},
     {"Generation Low", "seed_low", "", 0.0f, 65535.0f, 1.0f, flagInteger},
     {"Generation High", "seed_high", "", 0.0f, 65535.0f, 0.0f, flagInteger},
-    {"MIDI Output", "midi_out", "", 0.0f, 1.0f, 0.0f, flagInteger | flagBoolean},
+    {"MIDI Output", "midi_out", "", 0.0f, 1.0f, 1.0f, flagInteger | flagBoolean},
 
     {"Unison", "unison", "voices", 1.0f, 9.0f, 7.0f, flagInteger},
     {"Detune", "detune", "cents", 0.0f, 65.0f, 24.0f, flagNone},
@@ -152,6 +152,18 @@ inline double stepsPerBeatFromRate(const float value) noexcept
     case 2: return 6.0;  // 1/16 triplet
     default: return 8.0; // 1/32
     }
+}
+
+inline double stepDurationSamples(const double sampleRate, const double bpm,
+                                  const float rate, const float swing,
+                                  const uint32_t stepIndex) noexcept
+{
+    const double safeRate = std::max(8000.0, sampleRate);
+    const double safeBpm = std::max(20.0, std::min(400.0, bpm));
+    const double base = safeRate * 60.0 / safeBpm / stepsPerBeatFromRate(rate);
+    const double safeSwing = static_cast<double>(clampf(swing, 0.0f, 0.42f));
+    const double swingFactor = (stepIndex & 1u) != 0u ? 1.0 + safeSwing : 1.0 - safeSwing;
+    return std::max(1.0, base * swingFactor);
 }
 
 inline uint32_t generationFromValues(const float low, const float high) noexcept

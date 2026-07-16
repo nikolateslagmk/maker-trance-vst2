@@ -1,5 +1,6 @@
 #include "../Source/MakerTranceShared.hpp"
-#include <array>
+
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <set>
@@ -37,9 +38,9 @@ int main()
         cfg.gateLength = 0.15f + static_cast<float>(generation % 75u) / 100.0f;
         cfg.humanize = static_cast<float>(generation % 90u) / 100.0f;
         cfg.generation = generation;
+
         const auto pattern = MakerTrance::generateMelody(cfg);
-        if (pattern.length != cfg.length)
-            return 2;
+        if (pattern.length != cfg.length) return 2;
         if (!patterns.insert(serialize(pattern)).second)
         {
             std::cerr << "duplicate at generation " << generation << '\n';
@@ -52,6 +53,19 @@ int main()
                 return 4;
         }
     }
-    std::cout << "OK: 20000 unique melody event patterns validated\n";
+
+    // BPM following: the same musical step must become shorter at a higher BPM.
+    const double at120 = MakerTrance::stepDurationSamples(48000.0, 120.0, 1.0f, 0.0f, 0u);
+    const double at144 = MakerTrance::stepDurationSamples(48000.0, 144.0, 1.0f, 0.0f, 0u);
+    if (!(at144 < at120)) return 5;
+    if (std::abs((at120 / at144) - 1.2) > 0.0001) return 6;
+
+    // Swing keeps a two-step pair equal to two unswung steps.
+    const double even = MakerTrance::stepDurationSamples(48000.0, 138.0, 1.0f, 0.20f, 0u);
+    const double odd = MakerTrance::stepDurationSamples(48000.0, 138.0, 1.0f, 0.20f, 1u);
+    const double plain = MakerTrance::stepDurationSamples(48000.0, 138.0, 1.0f, 0.0f, 0u);
+    if (std::abs((even + odd) - plain * 2.0) > 0.001) return 7;
+
+    std::cout << "OK: 20000 unique patterns; BPM and swing timing validated\n";
     return 0;
 }

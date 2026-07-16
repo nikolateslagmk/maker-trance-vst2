@@ -1,33 +1,32 @@
-# Instalação no FL Studio
+# Instalação e captura da melodia no FL Studio
 
-1. Extraia o artefato baixado do GitHub Actions.
-2. Crie a pasta:
+## Instalar a DLL
+
+1. Feche o FL Studio.
+2. Copie `Maker Trance by Alza Produz.dll` para:
 
 ```text
 C:\VSTPlugins\Maker Trance\
 ```
 
-3. Copie para ela:
+3. Abra o FL Studio.
+4. Vá a `Options > Manage plugins`.
+5. Adicione `C:\VSTPlugins` ao Plugin search path.
+6. Clique em `Find installed plugins`.
 
-```text
-Maker Trance by Alza Produz.dll
-```
+## Gerar notas no Piano roll
 
-4. Abra o PowerShell e desbloqueie o arquivo, caso o Windows o marque como baixado da internet:
+1. Abra o plugin no Channel Rack.
+2. No Wrapper, configure um MIDI Output Port, por exemplo `1`.
+3. No plugin, escolha estilo, raiz, escala, rate e comprimento.
+4. Clique em `GENERATE NEW MELODY`.
+5. Selecione `AUTO MIDI`.
+6. Clique com o botão direito no canal do Maker Trance.
+7. Escolha `Burn MIDI to > New pattern`.
+8. Quando as notas forem criadas, volte ao plugin e selecione `MANUAL SYNTH`.
 
-```powershell
-Unblock-File "C:\VSTPlugins\Maker Trance\Maker Trance by Alza Produz.dll"
-```
+A melodia passa a existir no Piano roll e só toca pelas notas gravadas no padrão.
 
-5. No FL Studio, abra `Options > Manage plugins`.
-6. Adicione `C:\VSTPlugins` em `Plugin search paths`.
-7. Marque `Verify plugins`, `Rescan previously verified plugins` e `Rescan plugins with errors`.
-8. Clique em `Find installed plugins`.
-9. Pesquise por `Maker Trance` em `Installed > Generators`.
+## BPM
 
-## Uso
-
-- **MANUAL:** toque por teclado MIDI ou escreva no Piano Roll.
-- **AUTO:** pressione Play no FL Studio para o sequenciador começar.
-- **GENERATE NEW MELODY:** avança o contador e cria uma nova sequência.
-- **MIDI OUT:** encaminha notas geradas; deixe desligado quando quiser somente ouvir o instrumento.
+O AUTO MIDI calcula os eventos com o BPM recebido do FL Studio. Depois que as notas estão no Piano roll, elas ficam presas à grade musical e acompanham qualquer mudança de BPM do projeto.

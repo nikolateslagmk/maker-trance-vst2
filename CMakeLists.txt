@@ -1,24 +1,18 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(MakerTranceVST2 VERSION 1.0.3 LANGUAGES C CXX)
+project(MakerTranceVST2 VERSION 1.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(MSVC)
-    set(
-        CMAKE_MSVC_RUNTIME_LIBRARY
-        "MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    )
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# O workflow baixa o DPF para esta pasta.
+# The GitHub workflow checks out DPF into this folder.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dpf/CMakeLists.txt")
-    message(
-        FATAL_ERROR
-        "A pasta dpf nao foi encontrada. Execute o workflow do GitHub Actions."
-    )
+    message(FATAL_ERROR "DPF not found. Run the included GitHub Actions workflow.")
 endif()
 
 add_subdirectory(dpf)
@@ -39,26 +33,12 @@ dpf_add_plugin(
         Source/MakerTranceUI.cpp
 )
 
-target_include_directories(
-    MakerTrance
-    PUBLIC
-        Source
-)
+target_include_directories(MakerTrance PUBLIC Source)
 
 if(MSVC)
-    target_compile_options(
-        MakerTrance
-        PUBLIC
-            /W4
-            /EHsc
-    )
+    target_compile_options(MakerTrance PUBLIC /W4 /EHsc)
 else()
-    target_compile_options(
-        MakerTrance
-        PUBLIC
-            -Wall
-            -Wextra
-    )
+    target_compile_options(MakerTrance PUBLIC -Wall -Wextra)
 endif()
 
 if(TARGET "MakerTrance-vst2")
