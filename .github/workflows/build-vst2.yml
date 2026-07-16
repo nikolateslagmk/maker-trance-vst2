@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Baixar DPF
         run: |
@@ -24,6 +22,9 @@ jobs:
             --recursive \
             https://github.com/DISTRHO/DPF.git \
             dpf
+
+      - name: Validar gerador e arquivos
+        run: python3 tools/validate_project.py
 
       - name: Compilar VST2 Windows x64
         uses: distrho/dpf-cmake-action@v1
