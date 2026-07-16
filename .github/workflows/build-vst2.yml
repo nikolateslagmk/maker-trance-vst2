@@ -9,59 +9,25 @@ on:
 
 jobs:
   build-vst2:
-    runs-on: windows-2022
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
-
-      - name: Verificar arquivos essenciais
-        shell: powershell
-        run: |
-          $arquivos = @(
-            "CMakeLists.txt",
-            "Source\DistrhoPluginInfo.h",
-            "Source\MakerTranceShared.hpp",
-            "Source\MakerTrancePlugin.cpp",
-            "Source\MakerTranceUI.cpp"
-          )
-          foreach ($arquivo in $arquivos) {
-            if (-not (Test-Path $arquivo)) {
-              throw "Arquivo ausente no repositorio: $arquivo"
-            }
-          }
-          Write-Host "Projeto completo encontrado."
-
-      - name: Configurar projeto
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-
-      - name: Compilar VST2
-        run: cmake --build build --config Release --target MakerTrance-vst2 --parallel
-
-      - name: Localizar e preparar DLL
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path package | Out-Null
-          $dll = Get-ChildItem -Path build -Recurse -File -Filter "*.dll" |
-            Where-Object {
-              $_.Name -like "*MakerTrance*vst2*.dll" -or
-              $_.Name -like "*MakerTrance*.dll"
-            } |
-            Select-Object -First 1
-
-          if (-not $dll) {
-            Write-Host "DLLs encontradas dentro da pasta build:"
-            Get-ChildItem -Path build -Recurse -File -Filter "*.dll" |
-              Select-Object -ExpandProperty FullName
-            throw "A DLL VST2 do Maker Trance nao foi encontrada."
-          }
-
-          Write-Host "DLL encontrada: $($dll.FullName)"
-          Copy-Item $dll.FullName "package\Maker Trance by Alza Produz.dll" -Force
-
-      - name: Enviar VST2
-        uses: actions/upload-artifact@v4
         with:
-          name: Maker-Trance-by-Alza-Produz-Windows-VST2
-          path: package/Maker Trance by Alza Produz.dll
-          if-no-files-found: error
+          submodules: recursive
+
+      - name: Baixar DPF
+        run: |
+          git clone \
+            --depth 1 \
+            --recursive \
+            https://github.com/DISTRHO/DPF.git \
+            dpf
+
+      - name: Compilar VST2 Windows x64
+        uses: distrho/dpf-cmake-action@v1
+        with:
+          target: win64
+          dpf_path: dpf
+          release: false
