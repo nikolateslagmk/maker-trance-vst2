@@ -248,12 +248,12 @@ protected:
     const char* getLabel() const override { return "MakerTrance"; }
     const char* getDescription() const override
     {
-        return "Trance synthesizer with responsive UI, BPM-synced preview and MIDI-file export";
+        return "Triad-based trance synthesizer with scored emotional melody generation, BPM-synced preview and MIDI export";
     }
     const char* getMaker() const override { return "Alza Produz"; }
     const char* getHomePage() const override { return "https://github.com/nikolateslagmk"; }
     const char* getLicense() const override { return "Project source license plus DPF attribution"; }
-    uint32_t getVersion() const override { return d_version(1, 2, 0); }
+    uint32_t getVersion() const override { return d_version(1, 3, 0); }
     int64_t getUniqueId() const override { return d_cconst('M', 'T', 'A', '2'); }
 
     void initParameter(const uint32_t index, Parameter& parameter) override

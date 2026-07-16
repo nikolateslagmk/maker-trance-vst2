@@ -249,7 +249,7 @@ protected:
         drawButton(context, kTabSynth, "SINTETIZADOR", fPage == 1);
         drawButton(context, kTabFx, "EFEITOS", fPage == 2);
 
-        drawPanel(context, {18, 132, 1064, 474}, fPage == 0 ? "GERADOR E PIANO ROLL" : (fPage == 1 ? "MOTOR SONORO" : "EFEITOS DE TRANCE"));
+        drawPanel(context, {18, 132, 1064, 474}, fPage == 0 ? "GERADOR TRIADICO E PIANO ROLL" : (fPage == 1 ? "MOTOR SONORO" : "EFEITOS DE TRANCE"));
 
         if (fPage == 0)
             drawMelodyPage(context);
@@ -398,7 +398,7 @@ private:
         editParameter(pSeedHigh, false);
 
         rebuildPattern();
-        std::snprintf(fStatus, sizeof(fStatus), "MELODIA %u GERADA. CLIQUE TOCAR PREVIA OU EXPORTAR MIDI.", generation);
+        std::snprintf(fStatus, sizeof(fStatus), "MELODIA TRIADICA %u GERADA. PREVIA OU EXPORTAR MIDI.", generation);
         repaint();
     }
 
@@ -664,7 +664,7 @@ private:
     void drawSequence(const GraphicsContext& context) const
     {
         char title[160];
-        std::snprintf(title, sizeof(title), "%s  %s  RAIZ %s%d  %u PASSOS  GERACAO %u",
+        std::snprintf(title, sizeof(title), "TRIAD EPIC  %s  %s  RAIZ %s%d  %u PASSOS  GERACAO %u",
                       styleName(static_cast<int>(std::lround(fParameters[pStyle]))),
                       scaleName(static_cast<int>(std::lround(fParameters[pScale]))),
                       noteName(static_cast<int>(std::lround(fParameters[pRoot]))),
