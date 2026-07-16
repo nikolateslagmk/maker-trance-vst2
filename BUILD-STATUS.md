@@ -1,13 +1,14 @@
-# Build status — Maker Trance v1.2
+# Build status — Maker Trance v1.3
 
-Validações locais realizadas:
+Validações executadas:
 
-- 44 parâmetros consistentes.
-- 20.000 padrões sem duplicação exata no teste.
-- Temporização de prévia por BPM validada.
-- Temporização MIDI por PPQ e swing validada.
-- Arquivo MIDI com chunks `MThd` e `MTrk` validado.
-- Sintaxe C++17 do DSP e da interface verificada com stubs compatíveis com a API usada.
-- Workflow DPF win64 presente.
-
-O binário Windows deve ser gerado pelo GitHub Actions.
+- compilação C++17 do motor melódico;
+- 20.000 sequências MIDI completas sem duplicação exata;
+- 1.000 gerações consecutivas com 967 desenhos de notas distintos e nenhuma repetição consecutiva;
+- todas as notas dentro da escala selecionada;
+- resolução final na tônica;
+- no mínimo 8 notas ativas por frase;
+- nenhum salto acima de 12 semitons nos testes;
+- alcance limitado pelo parâmetro de oitavas;
+- exportação Standard MIDI File validada;
+- sincronismo da prévia com BPM validado.

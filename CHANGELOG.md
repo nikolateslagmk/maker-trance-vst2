@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.0
+
+- Novo gerador Epic Triad baseado em progressões e tríades diatônicas.
+- Seleção de 48 candidatos com pontuação harmônica, melódica e de resolução.
+- Motivos estruturados por estilo: Uplifting, Psychedelic e Progressive.
+- Cadência dominante–tônica obrigatória.
+- Limite de saltos melódicos e correção de repetições excessivas.
+- Alcance respeita o controle de oitavas.
+- Sem repetição consecutiva de desenho melódico nos testes.
+- Versão do plugin atualizada para 1.3.0.
+
+
 ## v1.2.0
 
 - Interface responsiva com escala automática.
