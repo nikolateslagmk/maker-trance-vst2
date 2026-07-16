@@ -1,7 +1,9 @@
 #include "../Source/MakerTranceShared.hpp"
+#include "../Source/MakerTranceMidi.hpp"
 
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -66,6 +68,28 @@ int main()
     const double plain = MakerTrance::stepDurationSamples(48000.0, 138.0, 1.0f, 0.0f, 0u);
     if (std::abs((even + odd) - plain * 2.0) > 0.001) return 7;
 
-    std::cout << "OK: 20000 unique patterns; BPM and swing timing validated\n";
+
+    // Musical tick timing is independent from project BPM after Piano Roll import.
+    const uint32_t tickEven = MakerTrance::stepDurationTicks(480u, 1.0f, 0.20f, 0u);
+    const uint32_t tickOdd = MakerTrance::stepDurationTicks(480u, 1.0f, 0.20f, 1u);
+    if (tickEven + tickOdd != 240u) return 8;
+
+    // Export a valid Standard MIDI file with MThd/MTrk chunks.
+    MakerTrance::MelodyConfig midiCfg;
+    midiCfg.generation = 12345u;
+    const auto midiPattern = MakerTrance::generateMelody(midiCfg);
+    const std::string midiPath = "maker-trance-test.mid";
+    if (!MakerTrance::writeMidiFile(midiPath, midiPattern, 1.0f, 0.08f)) return 9;
+    std::ifstream midi(midiPath, std::ios::binary);
+    std::string header(4, '\0');
+    midi.read(&header[0], 4);
+    if (header != "MThd") return 10;
+    midi.seekg(14, std::ios::beg);
+    midi.read(&header[0], 4);
+    if (header != "MTrk") return 11;
+    midi.close();
+    std::remove(midiPath.c_str());
+
+    std::cout << "OK: 20000 unique patterns; BPM preview, tick timing and MIDI export validated\n";
     return 0;
 }

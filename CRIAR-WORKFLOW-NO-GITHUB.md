@@ -1,30 +1,14 @@
-# Quando a pasta .github não for enviada
+# Criar ou atualizar o workflow no GitHub
 
-A pasta `.github` é oculta no Windows e alguns navegadores não a enviam. Não envie o projeto zipado esperando que o GitHub extraia.
+Se a pasta `.github` não for enviada pelo navegador:
 
-## Método seguro
+1. Abra o repositório na aba `Code`.
+2. Entre em `.github/workflows/build-vst2.yml` ou crie esse caminho com `Add file > Create new file`.
+3. Copie todo o conteúdo do arquivo visível `WORKFLOW-build-vst2.yml` deste pacote.
+4. Cole no editor do GitHub.
+5. Clique em `Commit changes`.
+6. Abra `Actions > Build Maker Trance VST2 Windows`.
+7. Aguarde a execução ficar verde.
+8. Baixe o artefato da execução mais recente.
 
-1. Envie para o repositório as pastas `Source` e `tools`, além dos arquivos da raiz.
-2. No GitHub, clique em `Add file > Create new file`.
-3. No nome do arquivo, digite exatamente:
-
-```text
-.github/workflows/build-vst2.yml
-```
-
-4. Abra o arquivo visível `WORKFLOW-build-vst2.yml` deste pacote.
-5. Copie todo o conteúdo e cole no editor do GitHub.
-6. Clique em `Commit changes`.
-7. Abra `Actions > Build Maker Trance VST2 Windows`.
-8. Clique em `Run workflow > Run workflow`.
-9. Quando ficar verde, abra a execução e baixe o artefato:
-
-```text
-Maker-Trance-by-Alza-Produz-Windows-VST2
-```
-
-O artefato conterá:
-
-```text
-Maker Trance by Alza Produz.dll
-```
+O workflow usa Ubuntu 22.04 e o `dpf-cmake-action` para gerar uma DLL Windows x64.

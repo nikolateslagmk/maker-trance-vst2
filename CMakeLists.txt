@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(MakerTranceVST2 VERSION 1.1.0 LANGUAGES C CXX)
+project(MakerTranceVST2 VERSION 1.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,6 +34,15 @@ dpf_add_plugin(
 )
 
 target_include_directories(MakerTrance PUBLIC Source)
+
+if(WIN32)
+    if(TARGET "MakerTrance-ui")
+        target_link_libraries("MakerTrance-ui" PRIVATE shell32)
+    endif()
+    if(TARGET "MakerTrance-vst2")
+        target_link_libraries("MakerTrance-vst2" PRIVATE shell32)
+    endif()
+endif()
 
 if(MSVC)
     target_compile_options(MakerTrance PUBLIC /W4 /EHsc)

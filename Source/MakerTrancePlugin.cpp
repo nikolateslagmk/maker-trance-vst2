@@ -248,19 +248,19 @@ protected:
     const char* getLabel() const override { return "MakerTrance"; }
     const char* getDescription() const override
     {
-        return "Trance synthesizer with one-shot MIDI melody generation for the host piano roll";
+        return "Trance synthesizer with responsive UI, BPM-synced preview and MIDI-file export";
     }
     const char* getMaker() const override { return "Alza Produz"; }
     const char* getHomePage() const override { return "https://github.com/nikolateslagmk"; }
     const char* getLicense() const override { return "Project source license plus DPF attribution"; }
-    uint32_t getVersion() const override { return d_version(1, 1, 0); }
+    uint32_t getVersion() const override { return d_version(1, 2, 0); }
     int64_t getUniqueId() const override { return d_cconst('M', 'T', 'A', '2'); }
 
     void initParameter(const uint32_t index, Parameter& parameter) override
     {
         if (index >= kParameterCount) return;
         const ParameterSpec& spec = kParameterSpecs[index];
-        parameter.hints = kParameterIsAutomatable;
+        parameter.hints = (index == pPreviewTrigger || index == pStopTrigger) ? 0u : kParameterIsAutomatable;
         if ((spec.flags & flagInteger) != 0) parameter.hints |= kParameterIsInteger;
         if ((spec.flags & flagBoolean) != 0) parameter.hints |= kParameterIsBoolean;
         if ((spec.flags & flagLog) != 0) parameter.hints |= kParameterIsLogarithmic;
@@ -290,12 +290,6 @@ protected:
         else if (index == pSeedLow || index == pSeedHigh)
             rebuildPattern();
 
-        if (index == pMode)
-        {
-            allNotesOff(true);
-            clearEffectTails();
-            resetSequencer();
-        }
     }
 
     void initProgramName(const uint32_t index, String& programName) override
@@ -351,7 +345,7 @@ protected:
 
         rebuildPattern();
         allNotesOff();
-        resetSequencer();
+        resetPreviewSequencer();
     }
 
     void activate() override
@@ -380,30 +374,33 @@ protected:
             bpm = timePosition.bbt.beatsPerMinute;
         bpm = std::max(40.0, std::min(300.0, bpm));
 
-        const bool automatic = fParameters[pMode] >= 0.5f;
-        const bool transportPlaying = timePosition.playing;
+        const uint32_t previewTrigger = static_cast<uint32_t>(
+            clampi(static_cast<int>(std::lround(fParameters[pPreviewTrigger])), 0, 65535));
+        const uint32_t stopTrigger = static_cast<uint32_t>(
+            clampi(static_cast<int>(std::lround(fParameters[pStopTrigger])), 0, 65535));
 
-        // AUTO is a one-shot MIDI capture mode. It never triggers the internal
-        // synthesizer. FL Studio can burn the emitted notes to the Piano roll.
-        if (automatic && transportPlaying && !fWasPlaying)
-            resetSequencer();
-        if (automatic && !transportPlaying && fWasPlaying)
-            releaseAutoNote(0u, true);
-        if (!automatic && fWasPlaying)
-            releaseAutoNote(0u, true);
-        fWasPlaying = automatic && transportPlaying;
+        if (stopTrigger != fLastStopTrigger)
+        {
+            fLastStopTrigger = stopTrigger;
+            stopPreview(true);
+        }
+        if (previewTrigger != fLastPreviewTrigger)
+        {
+            fLastPreviewTrigger = previewTrigger;
+            startPreview();
+        }
 
         uint32_t eventIndex = 0;
         for (uint32_t frame = 0; frame < frames; ++frame)
         {
             while (eventIndex < midiEventCount && midiEvents[eventIndex].frame <= frame)
             {
-                handleMidi(midiEvents[eventIndex], automatic);
+                handleMidi(midiEvents[eventIndex]);
                 ++eventIndex;
             }
 
-            if (automatic && transportPlaying)
-                processSequencer(frame, bpm);
+            if (fPreviewActive)
+                processPreviewSequencer(bpm);
 
             float left = 0.0f;
             float right = 0.0f;
@@ -461,8 +458,9 @@ private:
         fGatePhase = 0.0;
         fSmoothedGate = 1.0f;
         fChorusPhase = 0.0f;
-        fWasPlaying = false;
-        resetSequencer();
+        fLastPreviewTrigger = static_cast<uint32_t>(std::lround(fParameters[pPreviewTrigger]));
+        fLastStopTrigger = static_cast<uint32_t>(std::lround(fParameters[pStopTrigger]));
+        resetPreviewSequencer();
     }
 
     void clearEffectTails() noexcept
@@ -476,16 +474,39 @@ private:
         fChorusPhase = 0.0f;
     }
 
-    void resetSequencer() noexcept
+    void resetPreviewSequencer() noexcept
     {
         fSequenceStep = 0u;
         fSamplesUntilStep = 0.0;
-        fAutoGateSamples = 0.0;
-        fAutoNote = -1;
-        fSequenceFinished = false;
+        fPreviewGateSamples = 0.0;
+        fPreviewNote = -1;
+        fPreviewActive = false;
     }
 
-    void handleMidi(const MidiEvent& event, const bool automatic) noexcept
+    void startPreview() noexcept
+    {
+        stopPreview(true);
+        fSequenceStep = 0u;
+        fSamplesUntilStep = 0.0;
+        fPreviewGateSamples = 0.0;
+        fPreviewNote = -1;
+        fPreviewActive = true;
+    }
+
+    void stopPreview(const bool immediate) noexcept
+    {
+        releasePreviewNote();
+        fPreviewActive = false;
+        fSequenceStep = 0u;
+        fSamplesUntilStep = 0.0;
+        if (immediate)
+        {
+            allNotesOff(true);
+            clearEffectTails();
+        }
+    }
+
+    void handleMidi(const MidiEvent& event) noexcept
     {
         if (event.size == 0u) return;
         const uint8_t* const data = event.data;
@@ -495,15 +516,12 @@ private:
         {
             const int note = data[1] & 0x7F;
             const int velocity = data[2] & 0x7F;
-            if (!automatic)
-            {
-                if (velocity == 0) noteOff(note);
-                else noteOn(note, static_cast<float>(velocity) / 127.0f);
-            }
+            if (velocity == 0) noteOff(note);
+            else noteOn(note, static_cast<float>(velocity) / 127.0f);
         }
         else if (status == 0x80u && event.size >= 3u)
         {
-            if (!automatic) noteOff(data[1] & 0x7F);
+            noteOff(data[1] & 0x7F);
         }
         else if (status == 0xE0u && event.size >= 3u)
         {
@@ -516,26 +534,25 @@ private:
         }
     }
 
-    void processSequencer(const uint32_t frame, const double bpm) noexcept
+    void processPreviewSequencer(const double bpm) noexcept
     {
-        if (fSequenceFinished) return;
+        if (!fPreviewActive) return;
 
-        if (fAutoGateSamples > 0.0)
+        if (fPreviewGateSamples > 0.0)
         {
-            fAutoGateSamples -= 1.0;
-            if (fAutoGateSamples <= 0.0)
-                releaseAutoNote(frame, true);
+            fPreviewGateSamples -= 1.0;
+            if (fPreviewGateSamples <= 0.0)
+                releasePreviewNote();
         }
 
         fSamplesUntilStep -= 1.0;
         if (fSamplesUntilStep > 0.0) return;
 
-        releaseAutoNote(frame, true);
+        releasePreviewNote();
 
-        // Do not loop. Each transport start emits exactly one generated phrase.
         if (fSequenceStep >= fPattern.length)
         {
-            fSequenceFinished = true;
+            fPreviewActive = false;
             return;
         }
 
@@ -547,32 +564,20 @@ private:
 
         if (step.active != 0u)
         {
-            fAutoNote = clampi(static_cast<int>(step.note), 0, 127);
-            fAutoGateSamples = std::max(1.0, duration * (static_cast<double>(step.gate) / 127.0));
-            sendMidi(frame, true, fAutoNote, step.velocity);
+            fPreviewNote = clampi(static_cast<int>(step.note), 0, 127);
+            fPreviewGateSamples = std::max(1.0, duration * (static_cast<double>(step.gate) / 127.0));
+            noteOn(fPreviewNote, static_cast<float>(step.velocity) / 127.0f);
         }
 
         ++fSequenceStep;
     }
 
-    void sendMidi(const uint32_t frame, const bool noteOnEvent,
-                  const int note, const int velocity) noexcept
+    void releasePreviewNote() noexcept
     {
-        MidiEvent event {};
-        event.frame = frame;
-        event.size = 3u;
-        event.data[0] = noteOnEvent ? 0x90u : 0x80u;
-        event.data[1] = static_cast<uint8_t>(clampi(note, 0, 127));
-        event.data[2] = static_cast<uint8_t>(clampi(velocity, 0, 127));
-        writeMidiEvent(event);
-    }
-
-    void releaseAutoNote(const uint32_t frame, const bool sendOutput) noexcept
-    {
-        if (fAutoNote < 0) return;
-        if (sendOutput) sendMidi(frame, false, fAutoNote, 0);
-        fAutoNote = -1;
-        fAutoGateSamples = 0.0;
+        if (fPreviewNote < 0) return;
+        noteOff(fPreviewNote);
+        fPreviewNote = -1;
+        fPreviewGateSamples = 0.0;
     }
 
     void noteOn(const int note, const float velocity) noexcept
@@ -619,8 +624,8 @@ private:
                 voice.release();
             }
         }
-        fAutoNote = -1;
-        fAutoGateSamples = 0.0;
+        fPreviewNote = -1;
+        fPreviewGateSamples = 0.0;
     }
 
     void renderVoice(Voice& voice, float& outL, float& outR) noexcept
@@ -819,10 +824,11 @@ private:
 
     uint32_t fSequenceStep = 0u;
     double fSamplesUntilStep = 0.0;
-    double fAutoGateSamples = 0.0;
-    int fAutoNote = -1;
-    bool fWasPlaying = false;
-    bool fSequenceFinished = false;
+    double fPreviewGateSamples = 0.0;
+    int fPreviewNote = -1;
+    uint32_t fLastPreviewTrigger = 0u;
+    uint32_t fLastStopTrigger = 0u;
+    bool fPreviewActive = false;
 };
 
 Plugin* createPlugin()

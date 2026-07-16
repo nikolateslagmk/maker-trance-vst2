@@ -59,6 +59,9 @@ enum ParameterId : uint32_t
     pReverbDamp,
     pChorus,
 
+    pPreviewTrigger,
+    pStopTrigger,
+
     kParameterCount
 };
 
@@ -124,7 +127,10 @@ constexpr std::array<ParameterSpec, kParameterCount> kParameterSpecs {{
     {"Reverb Mix", "reverb_mix", "", 0.0f, 1.0f, 0.30f, flagNone},
     {"Reverb Size", "reverb_size", "", 0.0f, 1.0f, 0.74f, flagNone},
     {"Reverb Damping", "reverb_damp", "", 0.0f, 1.0f, 0.40f, flagNone},
-    {"Chorus", "chorus", "", 0.0f, 1.0f, 0.20f, flagNone}
+    {"Chorus", "chorus", "", 0.0f, 1.0f, 0.20f, flagNone},
+
+    {"Preview Trigger", "preview_trigger", "", 0.0f, 65535.0f, 0.0f, flagInteger},
+    {"Stop Trigger", "stop_trigger", "", 0.0f, 65535.0f, 0.0f, flagInteger}
 }};
 
 inline float clampf(const float value, const float lo, const float hi) noexcept
@@ -164,6 +170,16 @@ inline double stepDurationSamples(const double sampleRate, const double bpm,
     const double safeSwing = static_cast<double>(clampf(swing, 0.0f, 0.42f));
     const double swingFactor = (stepIndex & 1u) != 0u ? 1.0 + safeSwing : 1.0 - safeSwing;
     return std::max(1.0, base * swingFactor);
+}
+
+inline uint32_t stepDurationTicks(const uint32_t ppq, const float rate,
+                                  const float swing, const uint32_t stepIndex) noexcept
+{
+    const double safePpq = static_cast<double>(std::max<uint32_t>(24u, ppq));
+    const double base = safePpq / stepsPerBeatFromRate(rate);
+    const double safeSwing = static_cast<double>(clampf(swing, 0.0f, 0.42f));
+    const double swingFactor = (stepIndex & 1u) != 0u ? 1.0 + safeSwing : 1.0 - safeSwing;
+    return static_cast<uint32_t>(std::max(1.0, std::round(base * swingFactor)));
 }
 
 inline uint32_t generationFromValues(const float low, const float high) noexcept

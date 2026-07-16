@@ -1,11 +1,13 @@
-# Validação do pacote
+# Build status — Maker Trance v1.2
 
-- 42 parâmetros automatizáveis.
-- 24 vozes de polifonia.
-- Três motores estilísticos: Uplifting, Psychedelic e Progressive.
-- Gerador automático com 8, 16 ou 32 passos.
-- Teste local de 20.000 padrões de eventos sem duplicação exata.
-- Fontes DSP e UI verificadas sintaticamente em C++17 com stubs da API DPF.
-- Workflow Windows 2022 incluído e espelhado em arquivo visível.
+Validações locais realizadas:
 
-O binário Windows deve ser produzido pelo GitHub Actions ou Visual Studio 2022, pois este ambiente não contém o compilador MSVC/Windows SDK.
+- 44 parâmetros consistentes.
+- 20.000 padrões sem duplicação exata no teste.
+- Temporização de prévia por BPM validada.
+- Temporização MIDI por PPQ e swing validada.
+- Arquivo MIDI com chunks `MThd` e `MTrk` validado.
+- Sintaxe C++17 do DSP e da interface verificada com stubs compatíveis com a API usada.
+- Workflow DPF win64 presente.
+
+O binário Windows deve ser gerado pelo GitHub Actions.
