@@ -1,0 +1,7 @@
+Maker Trance by Alza Produz - Project Source License
+
+Copyright (c) 2026 Alza Produz.
+
+Permission is granted to the recipient to compile, use and modify this project for personal and commercial music production. Redistribution or resale of the source code or compiled plugin under another name is not granted without permission from the copyright holder.
+
+Third-party components retain their own licenses. The DISTRHO Plugin Framework is fetched during compilation and is not embedded in this source archive.
